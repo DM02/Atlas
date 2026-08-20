@@ -1,0 +1,25 @@
+.env
+.env.*
+!.env.example
+
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# LocalStorageBackend's default storage_path when run outside docker-compose
+# (e.g. eval/runners/*.py invoked from the repo root) — uploaded document
+# content, analogous to the documents_data docker volume in production.
+data/
+
+.DS_Store
+*.log

@@ -1,0 +1,11 @@
+## Data Encryption
+
+All data at rest is encrypted using AES-256. Data in transit is encrypted using TLS 1.3. Encryption keys are rotated automatically every 90 days and are never stored alongside the data they protect.
+
+## Access Control
+
+Atlas enforces role-based access control with two roles: admin and user. Only admins may upload, modify, or delete documents. Document-level permissions can restrict a document to specific users or roles, and access checks are enforced in the database query itself rather than filtered after the fact.
+
+## Incident Response
+
+Security incidents must be reported to the security team within one hour of discovery. The security team will triage the incident within four hours and notify affected customers within 72 hours if a data breach is confirmed, in line with regulatory requirements.

@@ -1,0 +1,11 @@
+## Core Features
+
+Atlas provides hybrid search combining vector similarity and full-text search, cross-encoder reranking for improved relevance, and citation-backed answers so users can verify every claim against the source document. Documents are processed through an ingestion pipeline that extracts, cleans, chunks, and embeds content automatically.
+
+## Pricing Tiers
+
+The Starter tier costs $49 per month and includes up to 500 documents and 2,000 queries per month. The Professional tier costs $199 per month and includes up to 5,000 documents and 20,000 queries per month. The Enterprise tier is custom-priced and includes unlimited documents, dedicated support, and a service level agreement of 99.9% uptime.
+
+## System Requirements
+
+Atlas requires PostgreSQL 16 or later with the pgvector extension installed. The backend runs on Python 3.12 or later. For local development, Docker and Docker Compose are required. Production deployments should provision at least 4 vCPUs and 8GB of RAM for the backend service.

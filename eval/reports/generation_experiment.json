@@ -1,0 +1,10 @@
+{
+  "run_id": "118599f0-ad2e-46ec-bb5e-2c50d6d200eb",
+  "num_questions": 30,
+  "answer_correctness_rate": 0.75,
+  "citation_correctness_rate": 0.9166666666666666,
+  "groundedness_rate": 0.9166666666666666,
+  "correct_refusal_rate": 1.0,
+  "hallucination_rate": 0.0,
+  "mean_latency_ms": 15974.705370000205
+}

@@ -1,0 +1,236 @@
+# Golden evaluation dataset for Atlas (docs/EVALUATION.md, docs/ARCHITECTURE.md §9).
+#
+# Versioned here (not a DB table) so it's reviewable in PRs like code — the
+# same "keep it in git, not the DB" reasoning as document permission grants.
+# Only *run results* (EvaluationRun/EvaluationResult) persist to Postgres.
+#
+# Schema per entry:
+#   id: stable identifier, used in reports
+#   question: the natural-language query
+#   answerable: whether the corpus actually contains the answer
+#   expected_answer_contains: key phrases a correct answer should mention
+#     (substring match, case-insensitive — a deliberately simple proxy for
+#     answer correctness; see eval/metrics/generation.py for why)
+#   expected_source_documents: which corpus files should be cited. Ground
+#     truth is at DOCUMENT granularity, not chunk-ID granularity, on purpose:
+#     chunk IDs differ across chunking strategies (that's the whole point of
+#     comparing them), so document-level relevance is what stays comparable
+#     across every experiment configuration in this project.
+#   expected_source_sections: which section headings (## markers in the
+#     corpus files) are relevant — an additional signal, only meaningfully
+#     checkable against structure-aware chunking's section_title tagging.
+#
+# Known limitation (see docs/EVALUATION.md "Limitations"): 30 questions is
+# below the ~50-100 target docs/ARCHITECTURE.md §10 risk 6 named as ideal for
+# statistical confidence. Kept intentionally small and hand-reviewable for a
+# single-session portfolio build; expanding it is a natural next step.
+
+- id: q001
+  question: "How many vacation days do full-time employees accrue during their first three years?"
+  answerable: true
+  expected_answer_contains: ["15 days"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Vacation Policy"]
+
+- id: q002
+  question: "How many vacation days do employees accrue starting in year four?"
+  answerable: true
+  expected_answer_contains: ["20 days"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Vacation Policy"]
+
+- id: q003
+  question: "How many unused vacation days can employees carry over into the next calendar year?"
+  answerable: true
+  expected_answer_contains: ["10"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Vacation Policy"]
+
+- id: q004
+  question: "How many days per week can employees work remotely without manager approval?"
+  answerable: true
+  expected_answer_contains: ["three days", "3 days"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Remote Work Policy"]
+
+- id: q005
+  question: "Who must approve a fully remote work arrangement?"
+  answerable: true
+  expected_answer_contains: ["manager", "People team"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Remote Work Policy"]
+
+- id: q006
+  question: "What percentage of employee premiums does Atlas cover for the base medical, dental, and vision plans?"
+  answerable: true
+  expected_answer_contains: ["100%"]
+  expected_source_documents: ["employee_handbook.txt"]
+  expected_source_sections: ["Health Benefits"]
+
+- id: q007
+  question: "How much does the Starter tier cost per month?"
+  answerable: true
+  expected_answer_contains: ["$49"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["Pricing Tiers"]
+
+- id: q008
+  question: "How many documents does the Professional tier include?"
+  answerable: true
+  expected_answer_contains: ["5,000", "5000"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["Pricing Tiers"]
+
+- id: q009
+  question: "What is the service level agreement uptime for the Enterprise tier?"
+  answerable: true
+  expected_answer_contains: ["99.9%"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["Pricing Tiers"]
+
+- id: q010
+  question: "Which PostgreSQL version does Atlas require at minimum?"
+  answerable: true
+  expected_answer_contains: ["PostgreSQL 16"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["System Requirements"]
+
+- id: q011
+  question: "How many queries per month does the Starter tier include?"
+  answerable: true
+  expected_answer_contains: ["2,000", "2000"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["Pricing Tiers"]
+
+- id: q012
+  question: "How much RAM should production deployments provision at minimum?"
+  answerable: true
+  expected_answer_contains: ["8GB", "8 GB"]
+  expected_source_documents: ["product_overview.txt"]
+  expected_source_sections: ["System Requirements"]
+
+- id: q013
+  question: "What encryption algorithm is used for data at rest?"
+  answerable: true
+  expected_answer_contains: ["AES-256"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Data Encryption"]
+
+- id: q014
+  question: "What TLS version is used to encrypt data in transit?"
+  answerable: true
+  expected_answer_contains: ["TLS 1.3"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Data Encryption"]
+
+- id: q015
+  question: "How often are encryption keys rotated?"
+  answerable: true
+  expected_answer_contains: ["90 days"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Data Encryption"]
+
+- id: q016
+  question: "How many roles does Atlas's access control system have?"
+  answerable: true
+  expected_answer_contains: ["two", "admin and user"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Access Control"]
+
+- id: q017
+  question: "Within how many hours must security incidents be reported to the security team?"
+  answerable: true
+  expected_answer_contains: ["one hour"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Incident Response"]
+
+- id: q018
+  question: "Within how many hours will the security team triage a reported incident?"
+  answerable: true
+  expected_answer_contains: ["four hours"]
+  expected_source_documents: ["security_policy.txt"]
+  expected_source_sections: ["Incident Response"]
+
+- id: q019
+  question: "Which Python version should new engineers install before their first day?"
+  answerable: true
+  expected_answer_contains: ["Python 3.12"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Development Environment Setup"]
+
+- id: q020
+  question: "Which Node.js version should new engineers install?"
+  answerable: true
+  expected_answer_contains: ["Node.js 22"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Development Environment Setup"]
+
+- id: q021
+  question: "How many approvals does a pull request require before merging?"
+  answerable: true
+  expected_answer_contains: ["at least one", "one approval"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Code Review Process"]
+
+- id: q022
+  question: "Within how many business days should reviewers respond to a pull request?"
+  answerable: true
+  expected_answer_contains: ["one business day"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Code Review Process"]
+
+- id: q023
+  question: "When do deployments happen automatically?"
+  answerable: true
+  expected_answer_contains: ["main branch"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Deployment Process"]
+
+- id: q024
+  question: "How can a deployment be rolled back?"
+  answerable: true
+  expected_answer_contains: ["previous container image"]
+  expected_source_documents: ["engineering_onboarding.txt"]
+  expected_source_sections: ["Deployment Process"]
+
+- id: q025
+  question: "What is Atlas's parental leave policy?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []
+
+- id: q026
+  question: "Does Atlas offer a mobile app?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []
+
+- id: q027
+  question: "Who is Atlas's CEO?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []
+
+- id: q028
+  question: "Does Atlas support Windows Server for production deployment?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []
+
+- id: q029
+  question: "What is the refund policy for the Enterprise tier?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []
+
+- id: q030
+  question: "How many vacation days do part-time employees receive per year?"
+  answerable: false
+  expected_answer_contains: []
+  expected_source_documents: []
+  expected_source_sections: []

@@ -1,0 +1,11 @@
+## Development Environment Setup
+
+New engineers should install Python 3.12, Node.js 22, and Docker Desktop before their first day. Clone the repository, copy .env.example to .env, and run docker compose up from the infra directory to start the full stack locally.
+
+## Code Review Process
+
+Every pull request requires at least one approval before merging. Reviewers should respond within one business day. Pull requests that touch the retrieval pipeline or authentication logic require approval from a senior engineer.
+
+## Deployment Process
+
+Deployments happen automatically when a pull request merges into the main branch, after the CI pipeline passes both backend and frontend test suites. Rollbacks can be triggered manually by redeploying the previous container image tag.

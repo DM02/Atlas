@@ -1,0 +1,42 @@
+{
+  "embedding_comparison": [
+    {
+      "run_id": "604ca5b4-0832-4bc8-944a-a6dfdb2a61dd",
+      "run_name": "embedding_comparison:BAAI/bge-small-en-v1.5",
+      "mean_recall_at_k": 1.0,
+      "mean_precision_at_k": 0.25,
+      "mrr": 0.9791666666666666,
+      "mean_latency_ms": 15.352112499992169,
+      "num_questions": 24
+    },
+    {
+      "run_id": "be37d932-aeee-4230-8ced-df012db34a3a",
+      "run_name": "embedding_comparison:BAAI/bge-base-en-v1.5",
+      "mean_recall_at_k": 1.0,
+      "mean_precision_at_k": 0.25,
+      "mrr": 0.9479166666666666,
+      "mean_latency_ms": 29.159716666526947,
+      "num_questions": 24
+    }
+  ],
+  "chunking_comparison": [
+    {
+      "run_id": "13b4ecc2-7e23-48c2-8402-b44c5c345578",
+      "run_name": "chunking_comparison:fixed_size",
+      "mean_recall_at_k": 1.0,
+      "mean_precision_at_k": 0.25,
+      "mrr": 0.9791666666666666,
+      "mean_latency_ms": 13.807191666652821,
+      "num_questions": 24
+    },
+    {
+      "run_id": "581bfe60-5449-414a-9e42-ee34de218557",
+      "run_name": "chunking_comparison:structure_aware",
+      "mean_recall_at_k": 1.0,
+      "mean_precision_at_k": 0.38541666666666663,
+      "mrr": 1.0,
+      "mean_latency_ms": 13.49598750016412,
+      "num_questions": 24
+    }
+  ]
+}
