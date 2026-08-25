@@ -64,6 +64,21 @@ export interface ChatQueryResponse {
   citations: CitationOut[];
 }
 
+export interface MessageOut {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+  citations: CitationOut[];
+}
+
+export interface ConversationDetailOut {
+  id: string;
+  title: string | null;
+  created_at: string;
+  messages: MessageOut[];
+}
+
 export interface EndpointLatencyOut {
   endpoint: string;
   count: number;
@@ -96,6 +111,69 @@ export interface EvaluationRunOut {
 interface TokenResponse {
   access_token: string;
   token_type: string;
+}
+
+export interface StreamTokenEvent {
+  type: "token";
+  text: string;
+}
+
+export interface StreamDoneEvent {
+  type: "done";
+  conversation_id: string;
+  message_id: string;
+  citations: CitationOut[];
+}
+
+export interface StreamErrorEvent {
+  type: "error";
+  detail: string;
+}
+
+export type ChatStreamEvent = StreamTokenEvent | StreamDoneEvent | StreamErrorEvent;
+
+export async function* chatQueryStream(
+  query: string,
+  conversationId?: string,
+): AsyncGenerator<ChatStreamEvent> {
+  const headers = new Headers({ "Content-Type": "application/json" });
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(`${API_URL}/api/v1/chat/query/stream`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query, conversation_id: conversationId ?? null }),
+  });
+
+  if (response.status === 401) {
+    setAuthToken(null);
+    window.dispatchEvent(new Event("atlas-unauthorized"));
+  }
+  if (!response.ok || !response.body) {
+    const detail = await response.text();
+    throw new Error(`Request failed (${response.status}): ${detail}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let newlineIndex: number;
+    while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+      const line = buffer.slice(0, newlineIndex);
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line.trim()) {
+        yield JSON.parse(line) as ChatStreamEvent;
+      }
+    }
+  }
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -165,6 +243,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, conversation_id: conversationId ?? null }),
     }),
+
+  getConversation: (id: string) =>
+    request<ConversationDetailOut>(`/api/v1/chat/conversations/${id}`),
 
   getAdminMetrics: () => request<MetricsOut>("/api/v1/admin/metrics"),
 

@@ -48,7 +48,12 @@ class Settings(BaseSettings):
     # together, this isn't auto-detected.
     openrouter_api_key: str | None = None
     llm_base_url: str | None = "https://openrouter.ai/api/v1"
-    llm_model: str = "openai/gpt-oss-20b:free"
+    # OpenRouter's free-tier model lineup churns fast — openai/gpt-oss-20b:free
+    # and nvidia/nemotron-nano-9b-v2:free were both live defaults here before
+    # each got pulled (real 404s caught both). Check
+    # https://openrouter.ai/api/v1/models for currently-available ":free"
+    # models if this one stops working too.
+    llm_model: str = "minimax/minimax-m2.7:free"
     embedding_base_url: str | None = "https://openrouter.ai/api/v1"
     embedding_model: str = "openai/text-embedding-3-small"
 

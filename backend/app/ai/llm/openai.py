@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+
 from openai import AsyncOpenAI, OpenAIError
 
 from app.ai.errors import AIProviderError
@@ -28,3 +30,21 @@ class OpenAILLMProvider(LLMProvider):
         except OpenAIError as exc:
             raise AIProviderError(f"Chat completion request failed: {exc}") from exc
         return response.choices[0].message.content or ""
+
+    async def stream_generate(self, system_prompt: str, user_prompt: str) -> AsyncIterator[str]:
+        try:
+            stream = await self._client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0,
+                stream=True,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+        except OpenAIError as exc:
+            raise AIProviderError(f"Chat completion request failed: {exc}") from exc

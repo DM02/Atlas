@@ -1,4 +1,5 @@
 import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
 from app.ai.llm.base import LLMProvider
@@ -57,3 +58,21 @@ async def generate_answer(
     return GenerationResult(
         answer=answer, cited_chunk_indices=parse_cited_indices(answer, max_index=len(chunks))
     )
+
+
+async def stream_answer(
+    *, llm: LLMProvider, query: str, chunks: list[RetrievedChunk]
+) -> AsyncIterator[str]:
+    """Same contract as generate_answer, but yields the answer incrementally.
+
+    Citation parsing needs the full answer text, so it isn't done here — the
+    caller accumulates these chunks and calls parse_cited_indices once the
+    stream ends.
+    """
+    if not chunks:
+        yield NO_ANSWER_TEXT
+        return
+
+    user_prompt = f"<context>\n{build_context_block(chunks)}\n</context>\n\nQuestion: {query}"
+    async for delta in llm.stream_generate(SYSTEM_PROMPT, user_prompt):
+        yield delta

@@ -1,6 +1,9 @@
+import json
 import uuid
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.embeddings.base import EmbeddingProvider
@@ -23,9 +26,45 @@ from app.schemas.chat import (
     ConversationOut,
     MessageOut,
 )
-from app.services.chat_service import ConversationNotFoundError, answer_query
+from app.services.chat_service import (
+    ConversationNotFoundError,
+    DoneEvent,
+    StreamEvent,
+    TokenEvent,
+    answer_query,
+    prepare_chat,
+    stream_chat,
+)
+from app.services.retrieval_service import RetrievedChunk
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+
+def _citation_dict(chunk: RetrievedChunk) -> dict:
+    return {
+        "chunk_id": str(chunk.chunk_id),
+        "document_id": str(chunk.document_id),
+        "document_title": chunk.document_title,
+        "version_number": chunk.version_number,
+        "page_number": chunk.page_number,
+        "section_title": chunk.section_title,
+        "score": chunk.score,
+    }
+
+
+def _event_to_json(event: StreamEvent) -> str:
+    if isinstance(event, TokenEvent):
+        payload = {"type": "token", "text": event.text}
+    elif isinstance(event, DoneEvent):
+        payload = {
+            "type": "done",
+            "conversation_id": str(event.conversation_id),
+            "message_id": str(event.message_id),
+            "citations": [_citation_dict(c) for c in event.citations],
+        }
+    else:
+        payload = {"type": "error", "detail": event.detail}
+    return json.dumps(payload) + "\n"
 
 
 @router.post("/query", response_model=ChatQueryResponse)
@@ -74,6 +113,47 @@ async def query(
             for c in result.citations
         ],
     )
+
+
+@router.post("/query/stream")
+async def query_stream(
+    payload: ChatQueryRequest,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    embedding_provider: EmbeddingProvider = Depends(get_embedding_provider),
+    llm: LLMProvider = Depends(get_llm_provider),
+    reranker: RerankerProvider = Depends(get_reranker),
+) -> StreamingResponse:
+    # Conversation lookup and retrieval happen here, outside the streamed
+    # response, so ConversationNotFoundError/AIProviderError still produce a
+    # normal 404/503 — once StreamingResponse starts, the 200 status is
+    # already on the wire and can't be changed.
+    try:
+        prepared = await prepare_chat(
+            session=session,
+            embedding_provider=embedding_provider,
+            settings=settings,
+            query=payload.query,
+            conversation_id=payload.conversation_id,
+            requesting_user=current_user,
+            reranker=reranker,
+        )
+    except ConversationNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except AIProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"AI provider is currently unavailable: {exc}",
+        ) from exc
+
+    async def event_stream() -> AsyncIterator[str]:
+        async for event in stream_chat(
+            session=session, llm=llm, query=payload.query, prepared=prepared
+        ):
+            yield _event_to_json(event)
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 
 @router.get("/conversations", response_model=list[ConversationOut])

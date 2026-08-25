@@ -1,3 +1,4 @@
+import json
 from collections.abc import AsyncGenerator
 
 from httpx import ASGITransport, AsyncClient
@@ -34,6 +35,10 @@ class StubLLM:
 
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
         return "Atlas is a RAG platform [1]."
+
+    async def stream_generate(self, system_prompt: str, user_prompt: str):
+        for word in ["Atlas ", "is ", "a RAG platform [1]."]:
+            yield word
 
 
 class FailingEmbeddingProvider:
@@ -198,6 +203,73 @@ async def test_chat_query_with_hybrid_search_and_reranking_enabled(
             body = response.json()
             assert body["answer"] == "Atlas is a RAG platform [1]."
             assert len(body["citations"]) == 1
+    finally:
+        app.dependency_overrides.clear()
+
+
+async def test_chat_query_stream_returns_tokens_and_persists_conversation(
+    db_session, tmp_path, admin_user
+) -> None:
+    _wire_overrides(db_session, tmp_path)
+    transport = ASGITransport(app=app)
+    headers = _auth_header(admin_user)
+
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.post(
+                "/api/v1/documents",
+                files={"file": ("notes.txt", b"Atlas is a RAG platform. " * 20, "text/plain")},
+                headers=headers,
+            )
+
+            events = []
+            async with client.stream(
+                "POST",
+                "/api/v1/chat/query/stream",
+                json={"query": "What is Atlas?"},
+                headers=headers,
+            ) as response:
+                assert response.status_code == 200
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        events.append(json.loads(line))
+
+            token_events = [e for e in events if e["type"] == "token"]
+            done_events = [e for e in events if e["type"] == "done"]
+            assert len(done_events) == 1
+            assert "".join(e["text"] for e in token_events) == "Atlas is a RAG platform [1]."
+            assert len(done_events[0]["citations"]) == 1
+            assert done_events[0]["citations"][0]["document_title"] == "notes.txt"
+
+            conversation_id = done_events[0]["conversation_id"]
+            detail = await client.get(
+                f"/api/v1/chat/conversations/{conversation_id}", headers=headers
+            )
+            assert detail.status_code == 200
+            messages = detail.json()["messages"]
+            assert [m["role"] for m in messages] == ["user", "assistant"]
+            assert messages[1]["content"] == "Atlas is a RAG platform [1]."
+    finally:
+        app.dependency_overrides.clear()
+
+
+async def test_chat_query_stream_with_unknown_conversation_id_returns_404(
+    db_session, tmp_path, admin_user
+) -> None:
+    _wire_overrides(db_session, tmp_path)
+    transport = ASGITransport(app=app)
+
+    try:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/chat/query/stream",
+                json={
+                    "query": "hi",
+                    "conversation_id": "00000000-0000-0000-0000-000000000000",
+                },
+                headers=_auth_header(admin_user),
+            )
+            assert response.status_code == 404
     finally:
         app.dependency_overrides.clear()
 

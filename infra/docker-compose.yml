@@ -87,7 +87,11 @@ services:
     build:
       context: ../frontend
     environment:
-      VITE_API_URL: http://localhost:8000
+      # Empty = relative paths (same-origin), so calls route through
+      # whatever origin actually served the page (Nginx's :80, including a
+      # tunnel pointed at it) via nginx's /api/ proxy, instead of a hardcoded
+      # localhost:8000 that only resolves correctly on the host machine.
+      VITE_API_URL: ""
     ports:
       - "5173:5173"
     depends_on:

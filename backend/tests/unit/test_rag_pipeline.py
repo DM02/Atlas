@@ -8,6 +8,7 @@ from app.ai.pipeline.rag_pipeline import (
     build_context_block,
     generate_answer,
     parse_cited_indices,
+    stream_answer,
 )
 from app.services.retrieval_service import RetrievedChunk
 
@@ -75,6 +76,38 @@ async def test_generate_answer_returns_parsed_citations_from_llm_response() -> N
 
     assert result.answer == "Atlas is a RAG platform [1]."
     assert result.cited_chunk_indices == [1]
+
+
+async def test_stream_answer_refuses_without_calling_llm_when_no_chunks() -> None:
+    class ExplodingLLM:
+        model_name = "should-not-be-called"
+
+        def stream_generate(self, system_prompt: str, user_prompt: str):
+            raise AssertionError("LLM should not be called when there are no chunks")
+
+    chunks = [c async for c in stream_answer(llm=ExplodingLLM(), query="anything", chunks=[])]
+
+    assert chunks == [NO_ANSWER_TEXT]
+
+
+async def test_stream_answer_yields_deltas_from_llm_stream() -> None:
+    class StubStreamLLM:
+        model_name = "stub"
+
+        async def stream_generate(self, system_prompt: str, user_prompt: str):
+            assert "<context" in user_prompt
+            for delta in ["Atlas ", "is ", "a RAG platform [1]."]:
+                yield delta
+
+    deltas = [
+        d
+        async for d in stream_answer(
+            llm=StubStreamLLM(), query="What is Atlas?", chunks=[_chunk("Atlas is a RAG platform.")]
+        )
+    ]
+
+    assert "".join(deltas) == "Atlas is a RAG platform [1]."
+    assert parse_cited_indices("".join(deltas), max_index=1) == [1]
 
 
 async def test_malicious_chunk_content_never_reaches_system_prompt_argument() -> None:

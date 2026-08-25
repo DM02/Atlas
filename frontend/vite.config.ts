@@ -6,5 +6,8 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // Allows access via nginx and tunnels (e.g. Cloudflare quick tunnels)
+    // whose hostname isn't known in advance.
+    allowedHosts: true,
   },
 });

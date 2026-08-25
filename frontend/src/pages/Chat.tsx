@@ -1,8 +1,16 @@
-import { useState, type ComponentPropsWithoutRef, type CSSProperties } from "react";
+import { useEffect, useState, type ComponentPropsWithoutRef, type CSSProperties } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { api, type ChatQueryResponse, type ChunkOut, type CitationOut } from "../api/client";
+import {
+  api,
+  chatQueryStream,
+  type ChatQueryResponse,
+  type ChunkOut,
+  type CitationOut,
+} from "../api/client";
+
+const CONVERSATION_STORAGE_KEY = "atlas_conversation_id";
 
 const mdThStyle: CSSProperties = {
   textAlign: "left",
@@ -48,22 +56,81 @@ export function ChatPage() {
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openFragment, setOpenFragment] = useState<ChunkOut | null>(null);
+  const [streamingQuery, setStreamingQuery] = useState<string | null>(null);
+  const [streamingAnswer, setStreamingAnswer] = useState("");
+
+  useEffect(() => {
+    const storedId = localStorage.getItem(CONVERSATION_STORAGE_KEY);
+    if (!storedId) {
+      setRestoring(false);
+      return;
+    }
+    api
+      .getConversation(storedId)
+      .then((conversation) => {
+        const restoredTurns: ChatTurn[] = [];
+        for (let i = 0; i < conversation.messages.length; i++) {
+          const message = conversation.messages[i];
+          if (message.role !== "user") continue;
+          const answer = conversation.messages[i + 1];
+          if (!answer || answer.role !== "assistant") continue;
+          restoredTurns.push({
+            query: message.content,
+            response: {
+              conversation_id: conversation.id,
+              message_id: answer.id,
+              answer: answer.content,
+              citations: answer.citations,
+            },
+          });
+        }
+        setConversationId(conversation.id);
+        setTurns(restoredTurns);
+      })
+      .catch(() => {
+        localStorage.removeItem(CONVERSATION_STORAGE_KEY);
+      })
+      .finally(() => setRestoring(false));
+  }, []);
 
   const handleAsk = async () => {
     if (!query.trim() || loading) return;
 
+    const currentQuery = query;
     setLoading(true);
     setError(null);
+    setQuery("");
+    setStreamingQuery(currentQuery);
+    setStreamingAnswer("");
+
+    let answer = "";
     try {
-      const response = await api.chatQuery(query, conversationId);
-      setConversationId(response.conversation_id);
-      setTurns((prev) => [...prev, { query, response }]);
-      setQuery("");
+      for await (const event of chatQueryStream(currentQuery, conversationId)) {
+        if (event.type === "token") {
+          answer += event.text;
+          setStreamingAnswer(answer);
+        } else if (event.type === "done") {
+          setConversationId(event.conversation_id);
+          localStorage.setItem(CONVERSATION_STORAGE_KEY, event.conversation_id);
+          const response: ChatQueryResponse = {
+            conversation_id: event.conversation_id,
+            message_id: event.message_id,
+            answer,
+            citations: event.citations,
+          };
+          setTurns((prev) => [...prev, { query: currentQuery, response }]);
+        } else if (event.type === "error") {
+          setError(event.detail);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Query failed");
     } finally {
+      setStreamingQuery(null);
+      setStreamingAnswer("");
       setLoading(false);
     }
   };
@@ -110,7 +177,27 @@ export function ChatPage() {
             )}
           </div>
         ))}
-        {turns.length === 0 && <p>Ask a question about your uploaded documents.</p>}
+        {streamingQuery !== null && (
+          <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: "0.75rem" }}>
+            <p>
+              <strong>Q:</strong> {streamingQuery}
+            </p>
+            <div>
+              <strong>A:</strong>
+              {streamingAnswer ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                  {streamingAnswer}
+                </ReactMarkdown>
+              ) : (
+                <span> Thinking...</span>
+              )}
+            </div>
+          </div>
+        )}
+        {restoring && <p>Loading conversation history...</p>}
+        {!restoring && turns.length === 0 && streamingQuery === null && (
+          <p>Ask a question about your uploaded documents.</p>
+        )}
       </div>
 
       {error && <p style={{ color: "crimson" }}>{error}</p>}
